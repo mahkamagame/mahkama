@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>محكمة الصراحة</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚖️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root {
+    --desk: #23392C; --folder: #E4CC8E; --folder-edge: #C9AE6A;
+    --paper: #FBF6E6; --paper-line: #E9DFC2; --ink: #1E2A44; --ink-soft: #4A5570;
+    --stamp-red: #B3261E; --stamp-green: #2E6B3F; --brass: #B08D3C; --on-desk: #F1E6C6;
+    --shadow: rgba(10, 20, 14, .45);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --desk: #121C16; --folder: #B59F66; --folder-edge: #8F7C4B; --paper: #E9E1CB; --paper-line: #D3C7A6;
+      --ink: #1A2338; --ink-soft: #3E4862; --stamp-red: #C0342B; --stamp-green: #33794A; --brass: #C9A450;
+      --on-desk: #E6DBBB; --shadow: rgba(0, 0, 0, .6);
+    }
+  }
+  :root[data-theme="dark"] {
+    --desk: #121C16; --folder: #B59F66; --folder-edge: #8F7C4B; --paper: #E9E1CB; --paper-line: #D3C7A6;
+    --ink: #1A2338; --ink-soft: #3E4862; --stamp-red: #C0342B; --stamp-green: #33794A; --brass: #C9A450;
+    --on-desk: #E6DBBB; --shadow: rgba(0, 0, 0, .6);
+  }
+  :root { box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  html { background: var(--desk); }
+  body {
+    margin: 0; font-family: 'Tajawal', 'Segoe UI', Tahoma, Arial, sans-serif; color: var(--on-desk);
+    background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.06), transparent 60%),
+                repeating-linear-gradient(90deg, rgba(0,0,0,.04) 0 2px, transparent 2px 6px), var(--desk);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .kufi { font-family: 'Reem Kufi', 'Tajawal', Tahoma, sans-serif; }
+  .ink { color: var(--ink); } .muted { color: var(--ink-soft); } .brass { color: var(--brass); }
+  .red { color: var(--stamp-red); } .green { color: var(--stamp-green); }
+
+  .folder { position: relative; background: var(--folder); border-radius: 6px 6px 10px 10px;
+    box-shadow: 0 18px 40px -12px var(--shadow), inset 0 0 0 1px var(--folder-edge); color: var(--ink); }
+  .folder::before { content: attr(data-tab); position: absolute; top: -30px; right: 22px; height: 32px; padding: 0 18px;
+    display: flex; align-items: center; background: var(--folder); border-radius: 8px 8px 0 0;
+    box-shadow: inset 0 1px 0 0 var(--folder-edge), inset 1px 0 0 0 var(--folder-edge), inset -1px 0 0 0 var(--folder-edge);
+    font-family: 'Reem Kufi', 'Tajawal', sans-serif; font-size: .85rem; color: var(--ink-soft); }
+  .sheet { background: repeating-linear-gradient(to bottom, transparent 0 33px, var(--paper-line) 33px 34px), var(--paper);
+    border-radius: 3px; box-shadow: 0 2px 0 var(--paper-line), 0 6px 14px -6px var(--shadow); position: relative; }
+  .sheet.margin::after { content: ""; position: absolute; top: 0; bottom: 0; right: 42px; width: 1px;
+    background: color-mix(in srgb, var(--stamp-red) 45%, transparent); }
+
+  .btn { font-family: 'Reem Kufi', 'Tajawal', sans-serif; border: 0; cursor: pointer; transition: transform .12s, box-shadow .12s, opacity .2s; }
+  .btn:active { transform: translateY(2px); }
+  .btn:focus-visible, .field:focus-visible { outline: 3px solid var(--brass); outline-offset: 3px; }
+  .btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+  .btn-seal { background: var(--stamp-red); color: #FFF4E6;
+    box-shadow: 0 5px 0 color-mix(in srgb, var(--stamp-red) 60%, #000), 0 10px 20px -8px var(--shadow); }
+  .btn-ghost { background: transparent; color: var(--on-desk); border: 2px solid color-mix(in srgb, var(--on-desk) 45%, transparent); }
+  .btn-ink { background: var(--ink); color: var(--paper); box-shadow: 0 4px 0 color-mix(in srgb, var(--ink) 55%, #000); }
+  .btn-outline-ink { background: transparent; color: var(--ink); border: 2px solid var(--ink); }
+
+  .field { width: 100%; padding: .8rem 1rem; border-radius: 4px; border: 2px solid var(--ink);
+    background: var(--paper); color: var(--ink); font-family: inherit; font-size: 1.15rem; }
+  .field.code { letter-spacing: .4em; text-align: center; font-weight: 800; direction: ltr; }
+
+  .opt { display: flex; align-items: center; justify-content: center; gap: .5rem; padding: .8rem .6rem; border-radius: 4px;
+    border: 2px dashed var(--ink); background: transparent; color: var(--ink); cursor: pointer;
+    font-family: 'Reem Kufi', 'Tajawal', sans-serif; font-weight: 700; font-size: 1.1rem; transition: background .15s, color .15s; word-break: break-word; }
+  .opt:focus-visible { outline: 3px solid var(--brass); outline-offset: 2px; }
+  .opt .box { width: 24px; height: 24px; flex: none; border: 2.5px solid currentColor; border-radius: 3px; display: grid; place-items: center; line-height: 1; }
+  .opt.big { font-size: 1.35rem; padding: .95rem .75rem; }
+  .opt[aria-pressed="true"] { border-style: solid; color: var(--paper); background: var(--ink); }
+  .opt.guilty[aria-pressed="true"] { background: var(--stamp-red); border-color: var(--stamp-red); }
+  .opt.innocent[aria-pressed="true"] { background: var(--stamp-green); border-color: var(--stamp-green); }
+
+  .chip { display: inline-flex; align-items: center; gap: .4rem; padding: .35rem .8rem; border-radius: 999px;
+    background: color-mix(in srgb, var(--ink) 8%, var(--paper)); color: var(--ink); font-weight: 700; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--stamp-green); }
+  .dot.off { background: #999; }
+
+  .bar { height: 10px; border-radius: 5px; background: var(--stamp-red); transition: width .4s ease; }
+
+  .stamp { position: absolute; top: 18px; left: 14px; padding: .25rem 1rem; border: 4px double currentColor; border-radius: 8px;
+    font-family: 'Reem Kufi', 'Tajawal', sans-serif; font-size: 2rem; font-weight: 700; opacity: 0;
+    transform: rotate(-14deg); pointer-events: none; mix-blend-mode: multiply; filter: url(#rough); }
+  .stamp.static { opacity: .88; }
+  .stamp.show { animation: slam .38s cubic-bezier(.2,1.4,.4,1) forwards; }
+  .stamp.guilty { color: var(--stamp-red); } .stamp.innocent { color: var(--stamp-green); }
+  @keyframes slam { 0% { transform: rotate(-14deg) scale(2.4); opacity: 0; } 60% { opacity: .92; } 100% { transform: rotate(-14deg) scale(1); opacity: .88; } }
+
+  .penalty-slip { background: color-mix(in srgb, var(--stamp-red) 8%, var(--paper)); border-right: 5px solid var(--stamp-red); color: var(--ink); }
+
+  .screen { display: none; } .screen.active { display: block; animation: enter .35s ease; }
+  @keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .card-swap { animation: swap .3s ease; }
+  @keyframes swap { from { opacity: 0; transform: translateX(-14px) rotate(-.6deg); } to { opacity: 1; transform: none; } }
+
+  .progress { display: flex; gap: 4px; }
+  .progress span { flex: 1; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--on-desk) 22%, transparent); }
+  .progress span.done { background: var(--brass); } .progress span.now { background: var(--on-desk); }
+
+  .nav-bar { position: sticky; bottom: 0; padding-bottom: calc(.9rem + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, var(--desk) 70%, transparent); }
+  #qr { background: #fff; padding: 10px; border-radius: 6px; display: inline-block; }
+  #qr img, #qr canvas { display: block; max-width: 100%; }
+  .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%) translateY(20px);
+    background: var(--ink); color: var(--paper); padding: .7rem 1.2rem; border-radius: 6px; opacity: 0; transition: .25s; z-index: 50; pointer-events: none; }
+  .toast.on { opacity: 1; transform: translateX(-50%); }
+  details summary { cursor: pointer; list-style: none; } details summary::-webkit-details-marker { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    .stamp.show { opacity: .88; transform: rotate(-14deg); }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="rough"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.5"/></filter>
+</svg>
+
+<main class="max-w-xl mx-auto px-4">
+
+  <!-- ============ HOME ============ -->
+  <section id="home" class="screen active pt-8 pb-12">
+    <div class="text-center mb-12">
+      <svg viewBox="0 0 64 64" class="w-14 h-14 mx-auto mb-3" fill="none" stroke="var(--brass)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M32 8v44M18 52h28M32 14l-18 4M32 14l18 4"/><path d="M14 18l-8 16a8 6 0 0 0 16 0z"/><path d="M50 18l-8 16a8 6 0 0 0 16 0z"/>
+      </svg>
+      <h1 class="kufi text-4xl sm:text-5xl font-bold">محكمة الصراحة</h1>
+      <p class="kufi text-lg mt-2 brass">القاضي يدير الجلسة.. والكل يصوّت من جواله</p>
+    </div>
+
+    <div id="setupNotice" class="hidden sheet p-5 mb-10 ink">
+      <p class="kufi text-xl font-bold red">اللعبة تحتاج ربط قاعدة البيانات أولاً</p>
+      <p class="mt-2 leading-8">افتح الملف وحط إعدادات Firebase الخاصة فيك مكان <b dir="ltr">firebaseConfig</b> في أعلى السكربت.</p>
+    </div>
+
+    <div class="folder p-3 sm:p-4" data-tab="استمارة الحضور">
+      <div class="sheet p-5 space-y-5">
+        <label class="block">
+          <span class="kufi text-lg font-bold ink">اسمك في الجلسة</span>
+          <input id="nameInput" class="field mt-2" maxlength="20" autocomplete="nickname" placeholder="مثلاً: أبو فهد">
+        </label>
+
+        <button id="createBtn" class="btn btn-seal w-full text-xl font-bold py-4 rounded-md">افتح جلسة جديدة (أنا القاضي)</button>
+
+        <div class="flex items-center gap-3 muted"><span class="flex-1 border-t-2 border-dashed" style="border-color:var(--paper-line)"></span><span class="kufi">أو انضم لجلسة</span><span class="flex-1 border-t-2 border-dashed" style="border-color:var(--paper-line)"></span></div>
+
+        <div class="flex gap-2">
+          <input id="codeInput" class="field code" inputmode="numeric" maxlength="5" placeholder="00000" aria-label="رقم الجلسة">
+          <button id="joinBtn" class="btn btn-ink text-lg px-6 rounded-md whitespace-nowrap">انضم</button>
+        </div>
+        <p id="homeErr" class="red font-bold text-center min-h-[1.5rem]" role="alert"></p>
+      </div>
+    </div>
+
+    <details class="mt-10 sheet p-5 ink">
+      <summary class="kufi text-xl font-bold text-center">قانون المحكمة: كيف تلعب؟</summary>
+      <ol class="mt-4 space-y-3 leading-8 list-decimal pr-5">
+        <li><b class="kufi">افتح الملف السري:</b> القاضي يفتح جلسة ويرسل الرابط أو الرقم للجميع.</li>
+        <li><b class="kufi">عيّن القاضي:</b> القاضي يقرأ التهمة بجدية.</li>
+        <li><b class="kufi">التصويت السريع:</b> كل واحد يختار من جواله المتهم الحقيقي بينكم!</li>
+        <li><b class="kufi">الدفاع والهجوم:</b> المتهم يدافع.. والمحلفون يصوتون: مذنب أو بريء.</li>
+        <li><b class="kufi">تنفيذ الحكم:</b> إذا مذنب، ينفذ الحكم الكوميدي فوراً!</li>
+      </ol>
+    </details>
+  </section>
+
+  <!-- ============ LOBBY ============ -->
+  <section id="lobby" class="screen pt-6 pb-12">
+    <header class="flex items-center justify-between mb-10">
+      <h1 class="kufi text-2xl font-bold">قاعة الانتظار</h1>
+      <button class="btn btn-ghost px-4 py-2 rounded-full exitBtn">خروج</button>
+    </header>
+
+    <div class="folder p-3 sm:p-4" data-tab="رقم الجلسة">
+      <div class="sheet p-5 text-center ink">
+        <p class="muted kufi">رقم الجلسة</p>
+        <p id="lobbyCode" class="kufi text-5xl font-bold tracking-[.3em] my-2" dir="ltr"></p>
+        <div id="hostShare" class="hidden">
+          <div id="qr" class="mt-3"></div>
+          <p class="muted mt-2">امسحوا الكود أو افتحوا الرابط</p>
+          <button id="shareBtn" class="btn btn-ink text-lg px-6 py-3 rounded-md mt-4">شارك رابط الجلسة</button>
+          <p id="fileWarn" class="hidden red text-sm mt-3 leading-7">أنت فاتح الملف من جهازك، فالرابط ما بيشتغل عند غيرك. ارفع الملف على موقع (مثل Netlify) أول.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sheet p-5 mt-6 ink">
+      <p class="kufi text-xl font-bold">الحاضرون (<span id="lobbyCount">0</span>)</p>
+      <div id="lobbyPlayers" class="flex flex-wrap gap-2 mt-3"></div>
+    </div>
+
+    <div class="text-center mt-8">
+      <button id="startBtn" class="hidden btn btn-seal text-2xl font-bold px-12 py-4 rounded-full">ابدأ الجلسة</button>
+      <p id="startHint" class="mt-3"></p>
+    </div>
+  </section>
+
+  <!-- ============ PLAY ============ -->
+  <section id="play" class="screen pt-5">
+    <header class="flex items-center justify-between gap-3 mb-3">
+      <button class="btn btn-ghost px-3 py-1.5 rounded-full text-sm exitBtn">خروج</button>
+      <h1 class="kufi text-2xl sm:text-3xl font-bold flex-1">محكمة الصراحة</h1>
+      <p class="kufi whitespace-nowrap brass">قضية رقم: <span id="caseNum"></span></p>
+    </header>
+    <p id="roleLine" class="text-sm mb-2 opacity-80"></p>
+    <div class="progress mb-10" id="progress" aria-hidden="true"></div>
+
+    <div class="folder p-3 sm:p-4" data-tab="ملف القضية">
+      <article id="card" class="sheet margin p-5 pr-14 overflow-hidden">
+        <div id="stamp" class="stamp" aria-hidden="true"></div>
+        <h2 id="caseTitle" class="kufi text-2xl font-bold leading-9 ml-20 red"></h2>
+        <p class="kufi text-sm mt-4 muted">نص التهمة</p>
+        <p id="accusation" class="text-xl leading-[34px] font-medium mt-1 ink"></p>
+        <div id="phaseBox" class="mt-8 pt-5 border-t-2 border-dashed" style="border-color:var(--paper-line)" aria-live="polite"></div>
+      </article>
+    </div>
+
+    <nav class="nav-bar mt-6 pt-6">
+      <div id="hostNav" class="grid grid-cols-2 gap-3">
+        <button id="prevBtn" class="btn btn-ghost text-lg py-3 rounded-md">القضية السابقة</button>
+        <button id="nextBtn" class="btn btn-seal text-lg py-3 rounded-md">القضية التالية</button>
+      </div>
+      <p id="playerNav" class="text-center opacity-80">القاضي يتحكم في الانتقال بين القضايا</p>
+    </nav>
+  </section>
+
+  <!-- ============ ENDED ============ -->
+  <section id="ended" class="screen pt-16 pb-12 text-center">
+    <h1 class="kufi text-4xl font-bold">رُفعت الجلسة</h1>
+    <p class="mt-3 brass text-lg">انتهت القضايا الـ15.. وكل واحد عرف نفسه.</p>
+    <div class="sheet p-5 mt-10 ink text-right">
+      <p class="kufi text-xl font-bold">سجل السوابق</p>
+      <div id="record" class="mt-3 space-y-2"></div>
+    </div>
+    <button id="restartBtn" class="hidden btn btn-seal text-xl px-10 py-4 rounded-full mt-10">جلسة جديدة من البداية</button>
+    <button class="btn btn-ghost px-8 py-3 rounded-full mt-4 block mx-auto exitBtn">خروج</button>
+  </section>
+</main>
+
+<div id="toast" class="toast" role="status"></div>
+
+<script>
+/* =========================================================
+   1) حط إعدادات Firebase حقتك هنا
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBc0Juh279frPgX6OdwKJfPysb_JzkUE8w",
+  authDomain: "mahkama-1406f.firebaseapp.com",
+  databaseURL: "https://mahkama-1406f-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "mahkama-1406f",
+  storageBucket: "mahkama-1406f.firebasestorage.app",
+  messagingSenderId: "536776239219",
+  appId: "1:536776239219:web:2c88a1481fd01d5ebe6206"
+};
+
+/* =========================================================
+   2) القضايا
+   ========================================================= */
+const CASES = [
+  { id: 1, title: "جريمة الاحتيال الجغرافي (01)", accusation: "المتهم يُصرّ على إرسال 'أنا عند الإشارة' بينما التحقيقات تُثبت أنه ما زال يرتدي حذاءه داخل منزله.", penalty: "يتحمل تكلفة توصيل الطلب القادم بالكامل." },
+  { id: 2, title: "تهمة السطو على وجبات الآخرين (02)", accusation: "المتهم يرفض الطلب بحجة 'شبعان ومو مشتهي'، لكنه يلتهم نصف بطاطس ومشروب الطرف الآخر تحت مسمى 'ذواقة'.", penalty: "ممنوع يلمس أي بطاطس الجلسة الجاية حتى لو طلب وجبة سوبر سايز." },
+  { id: 3, title: "جريمة الإهمال الرقمي العمد (03)", accusation: "قراءة الرسائل وتجاهلها لمدة 8 ساعات، ثم الرد فجأة بـ 'هههههه معليش توي أشوفها' مع ظهور علامة 'متصل الآن' طوال اليوم.", penalty: "الإجابة عن كل أسئلة الجلسة القادمة بصوت مسموع وبدون تأخير ثانية واحدة." },
+  { id: 4, title: "إفساد الأغذية وتبريد الطلبات (04)", accusation: "احتجاز الوجبات والمشروبات ومنع الجميع من الأكل حتى تبرد، بداعي التقاط 30 زاوية مختلفة لتصوير الستوري.", penalty: "مصادرة جواله ووضعه مقلوباً على الطاولة حتى ينتهي الجميع من الأكل." },
+  { id: 5, title: "تعطيل الملاحة والقرارات الجماعية (05)", accusation: "الرد بـ 'أي شيء عادي' على سؤال 'وين نتعشى؟'، ثم الاعتراض على كل مطعم أو كافيه يقترحه الباقون دون تقديم بديل واحد.", penalty: "إلزامه باختيار وحجز المكان للطلعة الجاية، وإذا ما أعجب أحد يتحمل الحساب." },
+  { id: 6, title: "النوم المفاجئ التهربي (06)", accusation: "ادعاء النعاس والانسحاب فجأة بمجرد بدء وقت تنظيف وترتيب المكان بعد العشاء أو القعدة.", penalty: "تجميع صحون وكاسات القعدة هذي بدون أي مساعدة." },
+  { id: 7, title: "التهويل الصوتي غير المبرر (07)", accusation: "إرسال فويس نوت مدتها 4 دقائق تتضمن 3 دقائق صمت وتنهيدات و'مدري شقول'، والموضوع الأساسي يتلخص في سطرين.", penalty: "يُمنع من إرسال الفويسات بالقروب لمدة 3 أيام ويجبر على الكتابة فقط." },
+  { id: 8, title: "الاستدراج المالي غير النزيه (08)", accusation: "اقتراح الذهاب لكافيه فاخر جداً ومكلف، ثم إشهار جملة 'نسيت محفظتي/ما نزل الراتب' عند وصول الفاتورة.", penalty: "دفع قطّة مشاوير المشوار الحالي فوراً." },
+  { id: 9, title: "السهر الغامض الصامت (09)", accusation: "الاعتذار عن الطلعة بعذر 'تعبان وراسي يعورني وبنام'، ثم ظهوره بتيك توك يسوي لايكات على مقاطع عشوائية الساعة 4 الفجر.", penalty: "إرسال اعتذار رسمي مكتوب بخط اليد بالقروب." },
+  { id: 10, title: "نقل شائعات الطقس ومسار الطريق (10)", accusation: "الثقة العمياء في حفظ الطرق ورفض تشغيل خرائط قوقل، مما يتسبب في إدخال أفراد الجلسة في أزمة زحمة دائرية لمدة ساعة.", penalty: "تسليم قيادة المسار أو الجوال للراكب بجانبه بدون نقاش." },
+  { id: 11, title: "الفضول الاستجوابي الحارق (11)", accusation: "طرح أسئلة تحقيقية مفاجئة بدون مقدمات مثل: 'كم باقيلك وتتخرج؟' أو 'كم جمعت من الراتب؟' وسط جلسة هادئة ومبهجة.", penalty: "الإجابة عن أكثر موقف محرج صار له هالسنة أمام الجميع." },
+  { id: 12, title: "التبرع بالوعود الوهمية (12)", accusation: "إطلاق عبارة 'الطلعة الجاية على حسابي خلاص!' بنبرة حماسية، والاختفاء تماماً عندما تحين الطلعة الجاية.", penalty: "شراء حلا اليوم للكل لتثبيت المصداقية." },
+  { id: 13, title: "السطو على الشواحن السريعة (13)", accusation: "فصل جوال صاحب البيت أو صاحب الشاحن وهو بنسبة 15% ليضع جواله بدلاً منه بداعي 'جوالي بيموت الحين'.", penalty: "يجلس بدون شاحن باقي القعدة، ويتحمل الموت السريري لبطاريته." },
+  { id: 14, title: "تكرار السوالف المنتهية (14)", accusation: "إعادة نفس السالفة التي يعرفها كل الحاضرين بحذافيرها للمرة السابعة وكأنها سر جديد يُكشف لأول مرة.", penalty: "غرامة قهوة إضافية للمستمعين كتعويض صبر." },
+  { id: 15, title: "التظاهر بعدم سماع المنبه (15)", accusation: "وضع 10 منبهات متتالية توقظ سكان الحي بالكامل، بينما المتهم يغط في نوم عميق ولا يتحرك منه ساكن.", penalty: "الاستيقاظ أول واحد في موعد الطلعة القادمة وتجهيز المنبه للجميع." }
+];
+
+/* =========================================================
+   Setup
+   ========================================================= */
+const $ = (id) => document.getElementById(id);
+const CONFIGURED = !firebaseConfig.apiKey.includes("YOUR_");
+let db = null;
+if (CONFIGURED && window.firebase) {
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.database();
+} else {
+  $("setupNotice").classList.remove("hidden");
+}
+
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (e) {} }
+};
+let pid = store.get("cc_pid");
+if (!pid) { pid = "p" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); store.set("cc_pid", pid); }
+
+let code = null, roomRef = null, connRef = null, onlineRef = null, room = null;
+let lastCase = -1, lastStampKey = "", qrFor = "";
+
+function h(tag, props = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (v === false || v == null) continue;
+    if (k === "class") el.className = v;
+    else if (k === "text") el.textContent = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else el.setAttribute(k, v);
+  }
+  kids.flat().forEach(c => { if (c == null || c === false) return; el.append(c.nodeType ? c : document.createTextNode(c)); });
+  return el;
+}
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("on"), 2400);
+}
+function showScreen(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.toggle("active", s.id === name));
+}
+function buzz(p) { if (navigator.vibrate) { try { navigator.vibrate(p); } catch (e) {} } }
+function roomLink(c) { return location.origin + location.pathname + "?room=" + c; }
+function playersOf(r) {
+  return Object.entries(r.players || {}).map(([id, p]) => ({ id, ...p })).sort((a, b) => (a.t || 0) - (b.t || 0));
+}
+function countBy(obj) { const c = {}; Object.values(obj || {}).forEach(v => { c[v] = (c[v] || 0) + 1; }); return c; }
+
+/* =========================================================
+   Home: create / join
+   ========================================================= */
+$("nameInput").value = store.get("cc_name") || "";
+const urlRoom = new URLSearchParams(location.search).get("room");
+if (urlRoom) $("codeInput").value = urlRoom;
+
+function getName() {
+  const n = $("nameInput").value.trim();
+  if (!n) { $("homeErr").textContent = "اكتب اسمك أول"; $("nameInput").focus(); return null; }
+  return n.slice(0, 20);
+}
+function needDb() {
+  if (!db) { $("homeErr").textContent = "لازم تربط Firebase أول (شوف الملاحظة فوق)"; return false; }
+  return true;
+}
+
+$("createBtn").addEventListener("click", async () => {
+  $("homeErr").textContent = "";
+  const name = getName(); if (!name || !needDb()) return;
+  $("createBtn").disabled = true;
+  try {
+    let c = null;
+    for (let i = 0; i < 8; i++) {
+      const tryCode = String(Math.floor(10000 + Math.random() * 90000));
+      const s = await db.ref(`rooms/${tryCode}/hostId`).get();
+      if (!s.exists()) { c = tryCode; break; }
+    }
+    if (!c) throw new Error("no code");
+    await db.ref(`rooms/${c}`).set({
+      hostId: pid,
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      state: { phase: "lobby", caseIndex: 0 },
+      players: { [pid]: { name, online: true, t: Date.now() } }
+    });
+    enterRoom(c, name);
+  } catch (e) {
+    console.error(e);
+    $("homeErr").textContent = "ما قدرنا نفتح الجلسة. تأكد من إعدادات Firebase والإنترنت.";
+  } finally { $("createBtn").disabled = false; }
+});
+
+async function joinRoom(c, name) {
+  const host = await db.ref(`rooms/${c}/hostId`).get();
+  if (!host.exists()) return false;
+  const me = await db.ref(`rooms/${c}/players/${pid}`).get();
+  if (me.exists()) await db.ref(`rooms/${c}/players/${pid}`).update({ name, online: true });
+  else await db.ref(`rooms/${c}/players/${pid}`).set({ name, online: true, t: Date.now() });
+  enterRoom(c, name);
+  return true;
+}
+
+$("joinBtn").addEventListener("click", async () => {
+  $("homeErr").textContent = "";
+  const name = getName(); if (!name || !needDb()) return;
+  const c = $("codeInput").value.replace(/\D/g, "");
+  if (c.length !== 5) { $("homeErr").textContent = "رقم الجلسة 5 أرقام"; return; }
+  $("joinBtn").disabled = true;
+  try {
+    if (!(await joinRoom(c, name))) $("homeErr").textContent = "ما لقينا جلسة بهذا الرقم";
+  } catch (e) {
+    console.error(e); $("homeErr").textContent = "صار خطأ في الاتصال، جرّب مرة ثانية";
+  } finally { $("joinBtn").disabled = false; }
+});
+$("codeInput").addEventListener("keydown", e => { if (e.key === "Enter") $("joinBtn").click(); });
+
+function enterRoom(c, name) {
+  code = c;
+  store.set("cc_room", c); store.set("cc_name", name);
+  history.replaceState(null, "", "?room=" + c);
+  lastCase = -1; lastStampKey = "";
+
+  onlineRef = db.ref(`rooms/${c}/players/${pid}/online`);
+  connRef = db.ref(".info/connected");
+  connRef.on("value", s => {
+    if (s.val() === true && onlineRef) { onlineRef.onDisconnect().set(false); onlineRef.set(true); }
+  });
+
+  roomRef = db.ref(`rooms/${c}`);
+  roomRef.on("value", s => { room = s.val(); render(); });
+}
+
+function leaveRoom(silent) {
+  if (roomRef) roomRef.off();
+  if (connRef) connRef.off();
+  if (onlineRef) { onlineRef.onDisconnect().cancel(); }
+  roomRef = connRef = onlineRef = null; room = null; code = null;
+  store.del("cc_room");
+  history.replaceState(null, "", location.pathname);
+  qrFor = "";
+  showScreen("home");
+  if (!silent) window.scrollTo(0, 0);
+}
+
+document.querySelectorAll(".exitBtn").forEach(b => b.addEventListener("click", async () => {
+  if (!room) return leaveRoom();
+  if (room.hostId === pid) {
+    if (!confirm("إنهاء الجلسة للجميع؟")) return;
+    const ref = roomRef; leaveRoom(); await ref.remove();
+  } else {
+    const ref = db.ref(`rooms/${code}/players/${pid}`);
+    leaveRoom(); await ref.remove();
+  }
+}));
+
+/* =========================================================
+   Host actions
+   ========================================================= */
+const upd = (patch) => db.ref(`rooms/${code}`).update(patch);
+
+function resetCase(i) {
+  return upd({ state: { phase: "vote", caseIndex: i }, [`votes/${i}`]: null, [`trial/${i}`]: null });
+}
+function closeVote() {
+  const ci = room.state.caseIndex;
+  const counts = countBy(room.votes?.[ci]);
+  const max = Math.max(0, ...Object.values(counts));
+  const top = Object.keys(counts).filter(id => counts[id] === max);
+  if (!top.length) return;
+  const accusedId = top[Math.floor(Math.random() * top.length)];
+  upd({ state: { phase: "accused", caseIndex: ci, accusedId, tie: top.length > 1 } });
+}
+function openTrial() { upd({ "state/phase": "trial" }); }
+function closeTrial() {
+  const ci = room.state.caseIndex;
+  const c = countBy(room.trial?.[ci]);
+  const verdict = (c.guilty || 0) > (c.innocent || 0) ? "guilty" : "innocent";
+  upd({
+    "state/phase": "verdict", "state/verdict": verdict,
+    [`record/${ci}`]: { accusedId: room.state.accusedId, verdict }
+  });
+}
+function go(delta) {
+  const next = room.state.caseIndex + delta;
+  if (next < 0) return;
+  if (next >= CASES.length) { upd({ state: { phase: "ended", caseIndex: CASES.length - 1 } }); return; }
+  resetCase(next);
+}
+$("prevBtn").addEventListener("click", () => go(-1));
+$("nextBtn").addEventListener("click", () => go(1));
+$("startBtn").addEventListener("click", () => resetCase(0));
+$("restartBtn").addEventListener("click", () => upd({ state: { phase: "vote", caseIndex: 0 }, votes: null, trial: null, record: null }));
+
+/* =========================================================
+   Player actions
+   ========================================================= */
+function castVote(target) {
+  db.ref(`rooms/${code}/votes/${room.state.caseIndex}/${pid}`).set(target);
+  buzz(20);
+}
+function castVerdict(v) {
+  db.ref(`rooms/${code}/trial/${room.state.caseIndex}/${pid}`).set(v);
+  buzz(20);
+}
+
+/* =========================================================
+   Render
+   ========================================================= */
+function render() {
+  if (!room) { toast("انتهت الجلسة"); leaveRoom(); return; }
+  if (!room.players || !room.players[pid]) { toast("خرجت من الجلسة"); leaveRoom(); return; }
+  const phase = room.state?.phase || "lobby";
+  if (phase === "lobby") renderLobby();
+  else if (phase === "ended") renderEnded();
+  else renderPlay();
+}
+
+function playerChip(p) {
+  return h("span", { class: "chip" }, h("span", { class: "dot" + (p.online === false ? " off" : "") }),
+    p.name + (p.id === pid ? " (أنت)" : "") + (p.id === room.hostId ? " ⚖️" : ""));
+}
+
+function renderLobby() {
+  showScreen("lobby");
+  const isHost = room.hostId === pid;
+  const players = playersOf(room);
+  $("lobbyCode").textContent = code;
+  $("lobbyCount").textContent = players.length;
+  $("lobbyPlayers").replaceChildren(...players.map(playerChip));
+
+  $("hostShare").classList.toggle("hidden", !isHost);
+  $("startBtn").classList.toggle("hidden", !isHost);
+  if (isHost) {
+    $("fileWarn").classList.toggle("hidden", location.protocol !== "file:");
+    if (qrFor !== code && window.QRCode) {
+      $("qr").innerHTML = "";
+      new QRCode($("qr"), { text: roomLink(code), width: 180, height: 180, colorDark: "#1E2A44", colorLight: "#ffffff" });
+      qrFor = code;
+    }
+    const enough = players.length >= 2;
+    $("startBtn").disabled = !enough;
+    $("startHint").textContent = enough ? "" : "انتظر ينضم لاعب واحد على الأقل";
+  } else {
+    $("startHint").textContent = "بانتظار القاضي يبدأ الجلسة...";
+  }
+}
+
+$("shareBtn").addEventListener("click", async () => {
+  const url = roomLink(code);
+  const text = `تعال انضم لمحكمة الصراحة! رقم الجلسة: ${code}`;
+  if (navigator.share) { try { await navigator.share({ title: "محكمة الصراحة", text, url }); return; } catch (e) { if (e.name === "AbortError") return; } }
+  try { await navigator.clipboard.writeText(`${text}\n${url}`); toast("انسخ الرابط"); }
+  catch (e) { prompt("انسخ الرابط:", url); }
+});
+
+function hostButton(label, fn, disabled) {
+  return h("div", { class: "text-center mt-5" },
+    h("button", { class: "btn btn-ink text-lg px-8 py-3 rounded-md", onclick: fn, disabled: disabled ? "" : false }, label));
+}
+
+function renderPlay() {
+  showScreen("play");
+  const st = room.state, ci = st.caseIndex, c = CASES[ci];
+  const isHost = room.hostId === pid;
+  const players = playersOf(room);
+  const byId = Object.fromEntries(players.map(p => [p.id, p]));
+  const online = players.filter(p => p.online !== false);
+  const me = byId[pid];
+
+  $("caseNum").textContent = `${ci + 1} / ${CASES.length}`;
+  $("roleLine").textContent = isHost ? `أنت القاضي، ${me.name}` : `تلعب باسم: ${me.name}`;
+
+  if (lastCase !== ci) {
+    $("caseTitle").textContent = c.title;
+    $("accusation").textContent = c.accusation;
+    const card = $("card"); card.classList.remove("card-swap"); void card.offsetWidth; card.classList.add("card-swap");
+    $("progress").replaceChildren(...CASES.map((_, i) => h("span", { class: i < ci ? "done" : i === ci ? "now" : "" })));
+    if (lastCase !== -1) window.scrollTo({ top: 0, behavior: "smooth" });
+    lastCase = ci;
+  }
+
+  // stamp
+  const stamp = $("stamp");
+  if (st.phase === "verdict") {
+    const key = ci + ":" + st.verdict;
+    stamp.textContent = st.verdict === "guilty" ? "مذنب" : "بريء";
+    if (key !== lastStampKey) {
+      stamp.className = "stamp"; void stamp.offsetWidth;
+      stamp.className = "stamp show " + st.verdict;
+      lastStampKey = key;
+      buzz(st.verdict === "guilty" ? [40, 30, 80] : 30);
+    } else if (!stamp.classList.contains("show")) {
+      stamp.className = "stamp static " + st.verdict;
+    }
+  } else { stamp.className = "stamp"; stamp.textContent = ""; lastStampKey = ""; }
+
+  const box = $("phaseBox");
+  const accused = byId[st.accusedId];
+  const accusedName = accused ? accused.name : "لاعب غادر";
+
+  if (st.phase === "vote") {
+    const votes = room.votes?.[ci] || {};
+    const n = Object.keys(votes).length;
+    box.replaceChildren(
+      h("p", { class: "kufi text-2xl font-bold text-center ink", text: "صوتوا الآن! من المذنب؟" }),
+      h("p", { class: "text-center muted mt-1", text: votes[pid] ? "تقدر تغيّر صوتك قبل ما يعلن القاضي النتيجة" : "اضغط على اسم اللي تشوفه مذنب" }),
+      h("div", { class: "grid grid-cols-2 gap-2 mt-4" }, players.map(p =>
+        h("button", { class: "opt", "aria-pressed": String(votes[pid] === p.id), onclick: () => castVote(p.id) },
+          p.name + (p.id === pid ? " (أنت)" : "")))),
+      h("p", { class: "text-center mt-4 kufi ink", text: `صوّت ${n} من ${online.length}` }),
+      isHost ? hostButton("إعلان المتهم", closeVote, n === 0) : null
+    );
+  }
+
+  else if (st.phase === "accused") {
+    const counts = countBy(room.votes?.[ci]);
+    const total = Object.values(counts).reduce((a, b) => a + b, 0) || 1;
+    const rows = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([id, k]) =>
+      h("div", { class: "mt-2" },
+        h("div", { class: "flex justify-between text-sm ink" }, h("span", { text: byId[id]?.name || "لاعب غادر" }), h("span", { text: `${k} صوت` })),
+        h("div", { class: "bar mt-1", style: `width:${Math.max(6, (k / total) * 100)}%` })));
+    box.replaceChildren(
+      h("p", { class: "text-center muted kufi", text: "المتهم في هذه القضية" }),
+      h("p", { class: "kufi text-4xl font-bold text-center red mt-1", text: accusedName }),
+      st.tie ? h("p", { class: "text-center muted mt-1", text: "تعادل في الأصوات.. والقرعة حسمتها" }) : null,
+      h("div", { class: "mt-4" }, rows),
+      h("p", { class: "text-center mt-5 ink font-bold leading-8",
+        text: st.accusedId === pid ? "أنت المتهم! قدّم دفاعك الحين قدام المحلفين." : "للمتهم فرصة يدافع فيها عن نفسه.. اسمعوه." }),
+      isHost ? hostButton("افتح التصويت على الحكم", openTrial) : null
+    );
+  }
+
+  else if (st.phase === "trial") {
+    const trial = room.trial?.[ci] || {};
+    const jurors = online.filter(p => p.id !== st.accusedId);
+    const n = Object.keys(trial).length;
+    const isAccused = st.accusedId === pid;
+    box.replaceChildren(
+      h("p", { class: "kufi text-xl font-bold text-center ink", text: "الحكم على المتهم" }),
+      h("p", { class: "kufi text-3xl font-bold text-center red mt-1", text: accusedName }),
+      isAccused
+        ? h("p", { class: "text-center mt-4 ink leading-8", text: "ما يحق لك التصويت على نفسك.. انتظر حكم المحلفين." })
+        : h("div", { class: "grid grid-cols-2 gap-3 mt-4", role: "group", "aria-label": "الحكم" },
+            ["guilty", "innocent"].map(v => h("button", { class: `opt big ${v}`, "aria-pressed": String(trial[pid] === v), onclick: () => castVerdict(v) },
+              h("span", { class: "box", text: trial[pid] === v ? "✓" : "" }), v === "guilty" ? "مذنب" : "بريء"))),
+      h("p", { class: "text-center mt-4 kufi ink", text: `صوّت ${n} من ${jurors.length}` }),
+      isHost ? hostButton("إعلان الحكم", closeTrial, n === 0) : null
+    );
+  }
+
+  else if (st.phase === "verdict") {
+    const k = countBy(room.trial?.[ci]);
+    const g = k.guilty || 0, inn = k.innocent || 0;
+    const guilty = st.verdict === "guilty";
+    box.replaceChildren(
+      h("p", { class: "kufi text-xl font-bold text-center ink", text: "الحكم على المتهم" }),
+      h("p", { class: "kufi text-3xl font-bold text-center mt-1 " + (guilty ? "red" : "green"), text: accusedName }),
+      h("div", { class: "flex justify-center gap-3 mt-3" },
+        h("span", { class: "chip", text: `مذنب: ${g}` }), h("span", { class: "chip", text: `بريء: ${inn}` })),
+      guilty
+        ? h("div", { class: "penalty-slip mt-5 p-4 rounded-sm" },
+            h("p", { class: "kufi text-lg font-bold red", text: "الحكم المقترح:" }),
+            h("p", { class: "text-lg leading-8 mt-1 font-medium", text: c.penalty }))
+        : h("p", { class: "text-center mt-4 green font-bold",
+            text: g === inn ? "تعادل الأصوات يُفسَّر لصالح المتهم.. أُفرج عنه." : "أُفرج عن المتهم.. هالمرة بس." })
+    );
+    if (guilty && st.accusedId === pid) toastOnce(ci, "صدر الحكم عليك.. نفّذ فوراً!");
+  }
+
+  $("hostNav").classList.toggle("hidden", !isHost);
+  $("playerNav").classList.toggle("hidden", isHost);
+  if (isHost) {
+    $("prevBtn").disabled = ci === 0;
+    $("nextBtn").textContent = ci === CASES.length - 1 ? "رفع الجلسة" : "القضية التالية";
+  }
+}
+let toastedCase = -1;
+function toastOnce(ci, msg) { if (toastedCase !== ci) { toastedCase = ci; toast(msg); } }
+
+function renderEnded() {
+  showScreen("ended");
+  const byId = Object.fromEntries(playersOf(room).map(p => [p.id, p]));
+  const tally = {};
+  Object.values(room.record || {}).forEach(r => { if (r && r.verdict === "guilty") tally[r.accusedId] = (tally[r.accusedId] || 0) + 1; });
+  const rows = Object.entries(tally).sort((a, b) => b[1] - a[1]);
+  $("record").replaceChildren(...(rows.length
+    ? rows.map(([id, n], i) => h("div", { class: "flex justify-between items-center" },
+        h("span", { class: "font-bold" + (i === 0 ? " red" : ""), text: (byId[id]?.name || "لاعب غادر") + (i === 0 ? " (المجرم الأول)" : "") }),
+        h("span", { class: "chip", text: `${n} إدانة` })))
+    : [h("p", { class: "muted", text: "ولا إدانة وحدة.. محكمة طيبة زيادة." })]));
+  $("restartBtn").classList.toggle("hidden", room.hostId !== pid);
+}
+
+/* =========================================================
+   Auto-rejoin after refresh
+   ========================================================= */
+(async function boot() {
+  if (!db) return;
+  const saved = store.get("cc_room"), name = store.get("cc_name");
+  const target = urlRoom || saved;
+  if (!target || !name || (urlRoom && saved && urlRoom !== saved)) return;
+  try {
+    const me = await db.ref(`rooms/${target}/players/${pid}`).get();
+    if (me.exists()) await joinRoom(target, name);
+  } catch (e) { console.error(e); }
+})();
+</script>
+</body>
+</html>
