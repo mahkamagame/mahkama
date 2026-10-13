@@ -464,6 +464,18 @@ $("licenseInput").addEventListener("keydown", e => { if (e.key === "Enter") $("a
 async function joinRoom(c, name) {
   const host = await db.ref(`rooms/${c}/hostId`).get();
   if (!host.exists()) return false;
+  // the judge lost their session on this device (refresh / cleared data): same activation code => give the judge seat back
+  const hc = (await db.ref(`rooms/${c}/hostCode`).get()).val();
+  if (license && hc === license) {
+    const hid = host.val();
+    if (hid !== pid) {
+      const old = (await db.ref(`rooms/${c}/players/${hid}`).get()).val();
+      const up = { hostId: pid };
+      if (old) { up[`players/${pid}`] = { ...old, name, online: true }; up[`players/${hid}`] = null; }
+      await db.ref(`rooms/${c}`).update(up);
+      toast("رجعت قاضي الجلسة ✓");
+    }
+  }
   const me = await db.ref(`rooms/${c}/players/${pid}`).get();
   if (me.exists()) await db.ref(`rooms/${c}/players/${pid}`).update({ name, online: true });
   else await db.ref(`rooms/${c}/players/${pid}`).set({ name, online: true, t: Date.now() });
