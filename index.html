@@ -305,6 +305,7 @@ let db = null;
 if (CONFIGURED && window.firebase) {
   firebase.initializeApp(firebaseConfig);
   db = firebase.database();
+  db.goOffline();   // stay disconnected until a session is used
 } else {
   $("setupNotice").classList.remove("hidden");
 }
@@ -314,6 +315,15 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
   del(k) { try { localStorage.removeItem(k); } catch (e) {} }
 };
+/* connect only while a session is in use: frees the free plan's connection slots */
+function online() { if (db) db.goOnline(); }
+let idleT = null;
+document.addEventListener("visibilitychange", () => {
+  if (!db) return;
+  clearTimeout(idleT);
+  if (document.hidden) idleT = setTimeout(() => db.goOffline(), 60000);
+  else if (code) db.goOnline();
+});
 let pid = store.get("cc_pid");
 if (!pid) { pid = "p" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); store.set("cc_pid", pid); }
 
@@ -378,6 +388,7 @@ function normCode(raw) {
 }
 
 async function claimLicense(code) {
+  online();
   const exists = await db.ref(`codes/${code}`).get();
   if (!exists.exists()) return "invalid";
   for (const slot of ["s1", "s2"]) {
@@ -399,6 +410,7 @@ function askForLicense(msg) {
 }
 
 async function createRoom(name) {
+  online();
   let c = null;
   for (let i = 0; i < 8; i++) {
     const tryCode = String(Math.floor(10000 + Math.random() * 90000));
@@ -462,6 +474,7 @@ $("activateBtn").addEventListener("click", async () => {
 $("licenseInput").addEventListener("keydown", e => { if (e.key === "Enter") $("activateBtn").click(); });
 
 async function joinRoom(c, name) {
+  online();
   const host = await db.ref(`rooms/${c}/hostId`).get();
   if (!host.exists()) return false;
   // the judge lost their session on this device (refresh / cleared data): same activation code => give the judge seat back
@@ -521,6 +534,7 @@ function leaveRoom(silent) {
   store.del("cc_room");
   history.replaceState(null, "", location.pathname);
   qrFor = "";
+  if (db) setTimeout(() => { if (!code) db.goOffline(); }, 1500);
   showScreen("home");
   if (!silent) window.scrollTo(0, 0);
 }
@@ -817,6 +831,7 @@ function renderEnded() {
   const target = urlRoom || saved;
   if (!target || !name || (urlRoom && saved && urlRoom !== saved)) return;
   try {
+    online();
     const me = await db.ref(`rooms/${target}/players/${pid}`).get();
     if (me.exists()) await joinRoom(target, name);
   } catch (e) { console.error(e); }
