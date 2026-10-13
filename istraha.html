@@ -467,6 +467,18 @@ async function joinRoom(c, name) {
   if (!host.exists()) return false;
   const pk = (await db.ref(`rooms/${c}/pack`).get()).val();
   if (pk !== "istraha") { store.set("cc_name", name); location.href = "./?room=" + c; return true; }
+  // the judge lost their session on this device (refresh / cleared data): same activation code => give the judge seat back
+  const hc = (await db.ref(`rooms/${c}/hostCode`).get()).val();
+  if (license && hc === license) {
+    const hid = (await db.ref(`rooms/${c}/hostId`).get()).val();
+    if (hid !== pid) {
+      const old = (await db.ref(`rooms/${c}/players/${hid}`).get()).val();
+      const up = { hostId: pid };
+      if (old) { up[`players/${pid}`] = { ...old, name, online: true }; up[`players/${hid}`] = null; }
+      await db.ref(`rooms/${c}`).update(up);
+      toast("رجعت قاضي الجلسة ✓");
+    }
+  }
   const me = await db.ref(`rooms/${c}/players/${pid}`).get();
   if (me.exists()) await db.ref(`rooms/${c}/players/${pid}`).update({ name, online: true });
   else await db.ref(`rooms/${c}/players/${pid}`).set({ name, online: true, t: Date.now() });
